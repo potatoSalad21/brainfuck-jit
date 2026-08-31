@@ -13,9 +13,52 @@ enum OpType {
     JmpIfNonzero,
 }
 
+impl OpType {
+    fn from_char(ch: char) -> Option<Self> {
+        match ch {
+            '>' => Some(OpType::Right),
+            '<' => Some(OpType::Left),
+            '+' => Some(OpType::Inc),
+            '-' => Some(OpType::Dec),
+            '.' => Some(OpType::Output),
+            ',' => Some(OpType::Input),
+            '[' => Some(OpType::JmpIfZero),
+            ']' => Some(OpType::JmpIfNonzero),
+            _ => None,
+        }
+    }
+}
+
 struct Op {
     op_type: OpType,
     operand: usize
+}
+
+struct Lexer {
+    buf: String,
+    pos: usize
+}
+
+impl Lexer {
+    fn new(buf: String) -> Self {
+        Self { buf, pos: 0 }
+    }
+}
+
+impl Iterator for Lexer {
+    type Item = Op;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pos < self.buf.len() {
+            let ch = self.buf.as_bytes()[self.pos] as char;
+            self.pos += 1;
+
+            if let Some(op_type) = OpType::from_char(ch) {
+                return Some(Op { op_type, operand: 1 });
+            }
+        }
+        None
+    }
 }
 
 fn main() {
@@ -31,19 +74,8 @@ fn main() {
         process::exit(1);
     });
 
-    let ops: Vec<Op> = buf
-        .chars()
-        .filter_map(|ch| match ch {
-            '>' => Some(OpType::Right),
-            '<' => Some(OpType::Left),
-            '+' => Some(OpType::Inc),
-            '-' => Some(OpType::Dec),
-            '.' => Some(OpType::Output),
-            ',' => Some(OpType::Input),
-            '[' => Some(OpType::JmpIfZero),
-            ']' => Some(OpType::JmpIfNonzero),
-            _ => None
-        })
-        .map(|op_type| Op { op_type, operand: 1})
-        .collect();
+    let lexer = Lexer::new(buf);
+    let ops: Vec<Op> = lexer.collect();
+
+    println!("parsed {} instructions", ops.len());
 }
