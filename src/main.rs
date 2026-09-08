@@ -80,6 +80,7 @@ fn main() {
     let mut ops: Vec<Op> = Vec::new();
 
     let mut ch = lexer.next();
+    let mut stack: Vec<usize> = Vec::new();
     while let Some(curr) = ch {
         if let Some(op_type) = OpType::from_char(curr) {
             if op_type.is_repeatable() {
@@ -97,9 +98,28 @@ fn main() {
                 });
                 ch = next;
             } else if op_type == OpType::JmpIfZero {
-                todo!("implement jmp forward");
+                let addr = ops.len();
+                let op = Op {
+                    op_type,
+                    operand: 0,
+                };
+                ops.push(op);
+                stack.push(addr);
+
+                ch = lexer.next();
             } else if op_type == OpType::JmpIfNonzero {
-                todo!("implement jmp backwards");
+                if let Some(addr) = stack.pop() {
+                    ops.push(Op {
+                        op_type,
+                        operand: addr + 1,
+                    });
+                    ops[addr].operand = ops.len();
+                } else {
+                    eprintln!("[Error] Unbalanced brackets");
+                    process::exit(1);
+                }
+
+                ch = lexer.next();
             }
         } else {
             ch = lexer.next();
