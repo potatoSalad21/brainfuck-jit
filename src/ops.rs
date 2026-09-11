@@ -34,7 +34,7 @@ impl OpType {
 
 #[derive(Debug)]
 pub struct Op {
-    op_type: OpType,
-    operand: usize
+    pub op_type: OpType,
+    pub operand: usize
 }
 
