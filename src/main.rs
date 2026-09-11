@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::process;
+use std::io::{self, BufReader, BufWriter, Read, Write};
 
 #[derive(Debug, PartialEq)]
 enum OpType {
@@ -63,7 +64,7 @@ impl Lexer {
     }
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: {} <file.bf>", args[0]);
@@ -78,11 +79,6 @@ fn main() {
 
     let mut lexer = Lexer::new(buf);
     let mut ops: Vec<Op> = Vec::new();
-
-    const TAPE_SIZE: usize = 10_000;
-    let mut memory: Vec<u8> = vec![0; TAPE_SIZE];   // circular tape
-    let mut ip: usize = 0;
-    let mut head: usize = 0;
 
     let mut ch = lexer.next();
     let mut stack: Vec<usize> = Vec::new();
@@ -131,6 +127,13 @@ fn main() {
         }
     }
 
+    const TAPE_SIZE: usize = 10_000;
+    let mut memory: Vec<u8> = vec![0; TAPE_SIZE];   // circular tape
+    let mut ip: usize = 0;
+    let mut head: usize = 0;
+    let mut stdin = BufReader::new(io::stdin().lock());
+    let mut stdout = BufWriter::new(io::stdout().lock());
+
     while ip < ops.len() {
         let op = &ops[ip];
 
@@ -149,13 +152,22 @@ fn main() {
             OpType::Left => {
                 head = (head + TAPE_SIZE - (op.operand % TAPE_SIZE)) % TAPE_SIZE;
             }
-            // TODO: implement rest of ops
             OpType::Output => {
-
+                stdout.write_all(&[memory[head]])?;
+                ip += 1;
             }
             OpType::Input => {
+                stdout.flush()?;
 
+                let mut buf = [0u8; 1];
+                if stdin.read(&mut buf)? == 0 {
+                    memory[head] = 0;   // EOF
+                } else {
+                    memory[head] = buf[0];
+                }
+                ip += 1;
             }
+            // TODO: implement jumps
             OpType::JmpIfZero => {
 
             }
@@ -164,4 +176,7 @@ fn main() {
             }
         }
     }
+    stdout.flush()?;
+
+    Ok(())
 }
