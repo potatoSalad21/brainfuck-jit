@@ -148,31 +148,44 @@ fn main() -> io::Result<()> {
             }
             OpType::Right => {
                 head = (head + op.operand) % TAPE_SIZE;
+                ip += 1;
             }
             OpType::Left => {
                 head = (head + TAPE_SIZE - (op.operand % TAPE_SIZE)) % TAPE_SIZE;
+                ip += 1;
             }
             OpType::Output => {
-                stdout.write_all(&[memory[head]])?;
+                for _ in 0..op.operand {
+                    stdout.write_all(&[memory[head]])?;
+                }
                 ip += 1;
             }
             OpType::Input => {
                 stdout.flush()?;
 
                 let mut buf = [0u8; 1];
-                if stdin.read(&mut buf)? == 0 {
-                    memory[head] = 0;   // EOF
-                } else {
-                    memory[head] = buf[0];
+                for _ in 0..op.operand {
+                    if stdin.read(&mut buf)? == 0 {
+                        memory[head] = 0;   // EOF
+                    } else {
+                        memory[head] = buf[0];
+                    }
                 }
                 ip += 1;
             }
-            // TODO: implement jumps
             OpType::JmpIfZero => {
-
+                if memory[head] == 0 {
+                    ip = op.operand;
+                } else {
+                    ip += 1;
+                }
             }
             OpType::JmpIfNonzero => {
-
+                if memory[head] != 0 {
+                    ip = op.operand;
+                } else {
+                    ip += 1;
+                }
             }
         }
     }
