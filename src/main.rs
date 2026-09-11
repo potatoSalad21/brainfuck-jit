@@ -79,6 +79,11 @@ fn main() {
     let mut lexer = Lexer::new(buf);
     let mut ops: Vec<Op> = Vec::new();
 
+    const TAPE_SIZE: usize = 10_000;
+    let mut memory: Vec<u8> = vec![0; TAPE_SIZE];   // circular tape
+    let mut ip: usize = 0;
+    let mut head: usize = 0;
+
     let mut ch = lexer.next();
     let mut stack: Vec<usize> = Vec::new();
     while let Some(curr) = ch {
@@ -126,8 +131,37 @@ fn main() {
         }
     }
 
-    for i in 0..ops.len() {
-        let op = ops.get(i).unwrap();
-        println!("{}: {:?} ({})", i, op.op_type, op.operand);
+    while ip < ops.len() {
+        let op = &ops[ip];
+
+        match op.op_type {
+            OpType::Inc => {
+                memory[head] = memory[head].wrapping_add(op.operand as u8);
+                ip += 1;
+            }
+            OpType::Dec => {
+                memory[head] = memory[head].wrapping_sub(op.operand as u8);
+                ip += 1;
+            }
+            OpType::Right => {
+                head = (head + op.operand) % TAPE_SIZE;
+            }
+            OpType::Left => {
+                head = (head + TAPE_SIZE - (op.operand % TAPE_SIZE)) % TAPE_SIZE;
+            }
+            // TODO: implement rest of ops
+            OpType::Output => {
+
+            }
+            OpType::Input => {
+
+            }
+            OpType::JmpIfZero => {
+
+            }
+            OpType::JmpIfNonzero => {
+
+            }
+        }
     }
 }
