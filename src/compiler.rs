@@ -11,6 +11,14 @@ const TAPE_MASK: u32 = (TAPE_SIZE - 1) as u32;
 //   r13 = head (for indexing)
 // [r12 + r13]
 
+fn emit_inc(code: &mut Vec<u8>, val: u8) {
+    code.extend_from_slice(&[0x43, 0x80, 0x04, 0x2c, val]);
+}
+
+fn emit_dec(code: &mut Vec<u8>, val: u8) {
+    code.extend_from_slice(&[0x43, 0x80, 0x2c, 0x2c, val]);
+}
+
 pub struct Jit {
     code: *mut u8,
     len: usize,
@@ -36,10 +44,10 @@ impl Jit {
         for (i, op) in ops.iter().enumerate() {
             match op.op_type {
                 OpType::Inc => {
-                    todo!("implement increment emitter");
+                    emit_inc(&mut code, op.operand as u8);
                 }
                 OpType::Dec => {
-                    todo!("implement decrement emitter");
+                    emit_dec(&mut code, op.operand as u8);
                 }
                 _ => {}
             }
