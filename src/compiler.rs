@@ -52,15 +52,23 @@ pub struct Jit {
 impl Jit {
     pub fn compile(ops: &[Op]) -> io::Result<Self> {
         // TODO: calculate hex length properly
-        let len = 4096;
-        let mut code: Vec<u8> = Vec::with_capacity(len);
+        let mut offsets = Vec::with_capacity(ops.len() + 1);
+        let mut offset = INIT.len();
+        for op in ops {
+            offsets.push(offset);
+            offset += op_size(op);
+        }
+        offsets.push(offset);
+
+        let total_len = offset + CLEANUP.len();
+        let mut code: Vec<u8> = Vec::with_capacity(total_len);
         code.extend_from_slice(&INIT);
         // TODO: add addr, base
 
         let addr = unsafe {
             libc::mmap(
                 std::ptr::null_mut(),
-                len,
+                total_len,
                 PROT_EXEC | PROT_WRITE,
                 MAP_ANONYMOUS | MAP_PRIVATE,
                 -1,
