@@ -2,6 +2,7 @@ mod ops;
 mod lexer;
 mod parser;
 mod interpreter;
+mod compiler;
 
 use std::env;
 use std::fs;
@@ -27,8 +28,14 @@ fn main() {
         process::exit(1);
     });
 
-    let mut interpreter = Interpreter::new();
-    if let Err(err) = interpreter.run(&ops) {
+    //let mut interpreter = Interpreter::new();
+    //if let Err(err) = interpreter.run(&ops) {
+    //    eprintln!("[Error] {err}");
+    //    process::exit(1);
+    //}
+
+    let mut compiler = Compiler::new();
+    if let Err(err) = compiler.run(&ops) {
         eprintln!("[Error] {err}");
         process::exit(1);
     }
