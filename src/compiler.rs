@@ -1,5 +1,5 @@
 use std::io;
-use libc::{c_void};
+use libc::{c_void, PROT_EXEC, PROT_WRITE, MAP_ANONYMOUS, MAP_PRIVATE};
 
 use crate::ops::{Op, OpType};
 
@@ -18,7 +18,40 @@ pub struct Jit {
 
 impl Jit {
     pub fn compile(ops: &[Op]) -> io::Result<Self> {
-        todo!("implement in-memory compiler");
+        let len = 4096;
+        let mut code: Vec<u8> = Vec::with_capacity(len);
+        // TODO: add addr, base
+
+        let addr = unsafe {
+            libc::mmap(
+                std::ptr::null_mut(),
+                len,
+                PROT_EXEC | PROT_WRITE,
+                MAP_ANONYMOUS | MAP_PRIVATE,
+                -1,
+                0
+            );
+        };
+
+        for (i, op) in ops.iter().enumerate() {
+            match op.op_type {
+                OpType::Inc => {
+                    todo!("implement increment emitter");
+                }
+                OpType::Dec => {
+                    todo!("implement decrement emitter");
+                }
+                _ => {}
+            }
+        }
+        todo!("implement in-mem compiler");
     }
 }
 
+impl Drop for Jit {
+    fn drop(&mut self) {
+        unsafe {
+            libc::munmap(self.code as *mut c_void, self.len);
+        }
+    }
+}
