@@ -44,6 +44,12 @@ fn emit_dec(code: &mut Vec<u8>, val: u8) {
     code.extend_from_slice(&[0x43, 0x80, 0x2c, 0x2c, val]);
 }
 
+fn emit_move_head(code: &mut Vec<u8>, delta: u32, negative: bool) {
+    let modrm = if negative { 0xed } else { 0xc5 };
+    code.extend_from_slice(&[0x49, 0x83, modrm]);
+    code.extend_from_slice(&delta.to_le_bytes());
+}
+
 pub struct Jit {
     code: *mut u8,
     len: usize,
@@ -51,7 +57,6 @@ pub struct Jit {
 
 impl Jit {
     pub fn compile(ops: &[Op]) -> io::Result<Self> {
-        // TODO: calculate hex length properly
         let mut offsets = Vec::with_capacity(ops.len() + 1);
         let mut offset = INIT.len();
         for op in ops {
@@ -59,11 +64,7 @@ impl Jit {
             offset += op_size(op);
         }
         offsets.push(offset);
-
         let total_len = offset + CLEANUP.len();
-        let mut code: Vec<u8> = Vec::with_capacity(total_len);
-        code.extend_from_slice(&INIT);
-        // TODO: add addr, base
 
         let addr = unsafe {
             libc::mmap(
@@ -75,10 +76,13 @@ impl Jit {
                 0
             )
         };
-
         if addr == MAP_FAILED {
             return Err(io::Error::last_os_error());
         }
+
+        let base = addr as usize;
+        let mut code: Vec<u8> = Vec::with_capacity(total_len);
+        code.extend_from_slice(&INIT);
 
         for (i, op) in ops.iter().enumerate() {
             match op.op_type {
@@ -87,6 +91,12 @@ impl Jit {
                 }
                 OpType::Dec => {
                     emit_dec(&mut code, op.operand as u8);
+                }
+                OpType::Left => {
+                    emit_move_head(&mut code, op.operand as u32, false);
+                }
+                OpType::Right => {
+                    emit_move_head(&mut code, op.operand as u32, true);
                 }
                 _ => {}
             }
