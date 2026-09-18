@@ -36,6 +36,14 @@ fn op_size(op: &Op) -> usize {
     }
 }
 
+fn push_u32(code: &mut Vec<u8>, val: u32) {
+    code.extend_from_slice(&val.to_le_bytes());
+}
+
+fn patch_rel32(code: &mut Vec<u8>, at: usize, rel: i32) {
+    code[at..at + 4].copy_from_slice(&rel.to_le_bytes());
+}
+
 fn emit_inc(code: &mut Vec<u8>, val: u8) {
     code.extend_from_slice(&[0x43, 0x80, 0x04, 0x2c, val]);
 }
@@ -44,10 +52,34 @@ fn emit_dec(code: &mut Vec<u8>, val: u8) {
     code.extend_from_slice(&[0x43, 0x80, 0x2c, 0x2c, val]);
 }
 
+// TODO: implement wraparound with &
 fn emit_move_head(code: &mut Vec<u8>, delta: u32, negative: bool) {
     let modrm = if negative { 0xed } else { 0xc5 };
     code.extend_from_slice(&[0x49, 0x83, modrm]);
     code.extend_from_slice(&delta.to_le_bytes());
+}
+
+fn emit_call(code: &mut Vec<u8>, base: usize, target: usize) {
+    code.push(0xe8);
+    let patch_at = code.len();
+    push_u32(code, 0);
+    let next = base + code.len();
+    patch_rel32(code, patch_at, (target as i64 - next as i64) as i32);
+}
+
+fn emit_input(code: &mut Vec<u8>, base: usize, getchar_addr: usize) {
+    emit_call(code, base, getchar_addr);
+    code.extend_from_slice(&[
+        0x31, 0xd2,             // xor edx, edx
+        0x83, 0xf8, 0xff,       // cmp eax, -1
+        0x0f, 0x45, 0xd0,       // cmovne edx, eax
+        0x43, 0x88, 0x14, 0x2c, // mov byte [r12 + r13], dl
+    ]);
+}
+
+fn emit_output(code: &mut Vec<u8>, base: usize, putchar_addr: usize) {
+    code.extend_from_slice(&[0x43, 0x0f, 0xb6, 0x3c, 0x2c]);
+    emit_call(code, base, putchar_addr);
 }
 
 pub struct Jit {
@@ -81,6 +113,10 @@ impl Jit {
         }
 
         let base = addr as usize;
+
+        let putchar_addr = libc::putchar as usize;
+        let getchar_addr = libc::getchar as usize;
+
         let mut code: Vec<u8> = Vec::with_capacity(total_len);
         code.extend_from_slice(&INIT);
 
@@ -97,6 +133,16 @@ impl Jit {
                 }
                 OpType::Right => {
                     emit_move_head(&mut code, op.operand as u32, true);
+                }
+                OpType::Input => {
+                    for _ in 0..op.operand {
+                        emit_input(&mut code, base, getchar_addr);
+                    }
+                }
+                OpType::Output => {
+                    for _ in 0..op.operand {
+                        emit_output(&mut code, base, putchar_addr);
+                    }
                 }
                 _ => {}
             }
