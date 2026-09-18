@@ -9,6 +9,7 @@ use std::fs;
 use std::process;
 
 use interpreter::Interpreter;
+use compiler::{Jit, TAPE_SIZE};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -34,9 +35,10 @@ fn main() {
     //    process::exit(1);
     //}
 
-    let mut compiler = Compiler::new();
-    if let Err(err) = compiler.run(&ops) {
-        eprintln!("[Error] {err}");
+    let jit = Jit::compile(&ops).unwrap_or_else(|err| {
+        eprintln!("[Error] Jit compilation failed: {err}");
         process::exit(1);
-    }
+    });
+    let mut tape = vec![0u8; TAPE_SIZE];
+    jit.run(&mut tape);
 }
