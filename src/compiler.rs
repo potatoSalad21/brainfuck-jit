@@ -1,5 +1,5 @@
 use std::io;
-use libc::{c_void, PROT_EXEC, PROT_WRITE, MAP_ANONYMOUS, MAP_PRIVATE, MAP_FAILED};
+use libc::{c_void, PROT_EXEC, PROT_READ, PROT_WRITE, MAP_ANONYMOUS, MAP_PRIVATE, MAP_FAILED};
 
 use crate::ops::{Op, OpType};
 
@@ -117,7 +117,7 @@ impl Jit {
             libc::mmap(
                 std::ptr::null_mut(),
                 total_len,
-                PROT_EXEC | PROT_WRITE,
+                PROT_READ | PROT_WRITE,
                 MAP_ANONYMOUS | MAP_PRIVATE,
                 -1,
                 0
@@ -172,7 +172,26 @@ impl Jit {
 
         code.extend_from_slice(&CLEANUP);
 
-        todo!("implement in-mem compiler");
+        unsafe {
+            std::ptr::copy_nonoverlapping(code.as_ptr(), addr as *mut u8, code.len());
+            if libc::mprotect(addr, total_len, PROT_READ | PROT_EXEC) != 0 {
+                let err = io::Error::last_os_error();
+                libc::munmap(addr, total_len);
+                return Err(err);
+            }
+        }
+
+        Ok(Jit {
+            code: addr as *mut u8,
+            len: total_len,
+        })
+    }
+
+    pub fn run(&self, tape: &mut [u8]) {
+        let f = unsafe {
+            std::mem::transmute::<*mut u8, extern "C" fn(*mut u8)>(self.code)
+        };
+        f(tape.as_mut_ptr());
     }
 }
 
