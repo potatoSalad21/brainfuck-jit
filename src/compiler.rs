@@ -44,6 +44,19 @@ fn patch_rel32(code: &mut Vec<u8>, at: usize, rel: i32) {
     code[at..at + 4].copy_from_slice(&rel.to_le_bytes());
 }
 
+fn emit_cmp_zero(code: &mut Vec<u8>) {
+    code.extend_from_slice(&[0x43, 0x80, 0x3c, 0x2c, 0x00]);
+}
+
+fn emit_jcc(code: &mut Vec<u8>, base: usize, opcode: [u8; 2], offset: usize) {
+    code.extend_from_slice(&opcode);
+    let patch_at = code.len();
+    push_u32(code, 0);
+    let next = base + code.len();
+    let target = base + offset;
+    patch_rel32(code, patch_at, (target as i64 - next as i64) as i32);
+}
+
 fn emit_inc(code: &mut Vec<u8>, val: u8) {
     code.extend_from_slice(&[0x43, 0x80, 0x04, 0x2c, val]);
 }
@@ -146,7 +159,14 @@ impl Jit {
                         emit_output(&mut code, base, putchar_addr);
                     }
                 }
-                _ => {}
+                OpType::JmpIfZero => {
+                    emit_cmp_zero(&mut code);
+                    emit_jcc(&mut code, base, [0x0f, 0x84], offsets[op.operand]); // je
+                }
+                OpType::JmpIfNonzero => {
+                    emit_cmp_zero(&mut code);
+                    emit_jcc(&mut code, base, [0x0f, 0x85], offsets[op.operand]);    // jne
+                }
             }
         }
 
