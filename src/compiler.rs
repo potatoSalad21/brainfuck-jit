@@ -67,7 +67,7 @@ fn emit_dec(code: &mut Vec<u8>, val: u8) {
 
 fn emit_move_head(code: &mut Vec<u8>, delta: u32, negative: bool) {
     let modrm = if negative { 0xed } else { 0xc5 };
-    code.extend_from_slice(&[0x49, 0x83, modrm]);   // add/sub r13, imm32
+    code.extend_from_slice(&[0x49, 0x81, modrm]);   // add/sub r13, imm32
     push_u32(code, delta);
 
     code.extend_from_slice(&[0x49, 0x81, 0xe5]);    // and r13, imm32
