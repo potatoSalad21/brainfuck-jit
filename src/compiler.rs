@@ -3,7 +3,7 @@ use libc::{c_void, PROT_EXEC, PROT_WRITE, MAP_ANONYMOUS, MAP_PRIVATE, MAP_FAILED
 
 use crate::ops::{Op, OpType};
 
-pub const TAPE_SIZE: usize = 10_000;
+pub const TAPE_SIZE: usize = 1 << 14;
 const TAPE_MASK: u32 = (TAPE_SIZE - 1) as u32;
 
 // Register convention for tape:
@@ -52,11 +52,13 @@ fn emit_dec(code: &mut Vec<u8>, val: u8) {
     code.extend_from_slice(&[0x43, 0x80, 0x2c, 0x2c, val]);
 }
 
-// TODO: implement wraparound with &
 fn emit_move_head(code: &mut Vec<u8>, delta: u32, negative: bool) {
     let modrm = if negative { 0xed } else { 0xc5 };
-    code.extend_from_slice(&[0x49, 0x83, modrm]);
-    code.extend_from_slice(&delta.to_le_bytes());
+    code.extend_from_slice(&[0x49, 0x83, modrm]);   // add/sub r13, imm32
+    push_u32(code, delta);
+
+    code.extend_from_slice(&[0x49, 0x81, 0xe5]);    // and r13, imm32
+    push_u32(code, TAPE_MASK);
 }
 
 fn emit_call(code: &mut Vec<u8>, base: usize, target: usize) {
