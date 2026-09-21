@@ -40,7 +40,7 @@ fn push_u32(code: &mut Vec<u8>, val: u32) {
     code.extend_from_slice(&val.to_le_bytes());
 }
 
-fn patch_rel32(code: &mut Vec<u8>, at: usize, rel: i32) {
+fn patch_rel32(code: &mut [u8], at: usize, rel: i32) {
     code[at..at + 4].copy_from_slice(&rel.to_le_bytes());
 }
 
@@ -129,13 +129,13 @@ impl Jit {
 
         let base = addr as usize;
 
-        let putchar_addr = libc::putchar as usize;
-        let getchar_addr = libc::getchar as usize;
+        let putchar_addr = libc::putchar as *const () as usize;
+        let getchar_addr = libc::getchar as *const () as usize;
 
         let mut code: Vec<u8> = Vec::with_capacity(total_len);
         code.extend_from_slice(&INIT);
 
-        for (i, op) in ops.iter().enumerate() {
+        for op in ops.iter() {
             match op.op_type {
                 OpType::Inc => {
                     emit_inc(&mut code, op.operand as u8);
@@ -144,10 +144,10 @@ impl Jit {
                     emit_dec(&mut code, op.operand as u8);
                 }
                 OpType::Left => {
-                    emit_move_head(&mut code, op.operand as u32, false);
+                    emit_move_head(&mut code, op.operand as u32, true);
                 }
                 OpType::Right => {
-                    emit_move_head(&mut code, op.operand as u32, true);
+                    emit_move_head(&mut code, op.operand as u32, false);
                 }
                 OpType::Input => {
                     for _ in 0..op.operand {
